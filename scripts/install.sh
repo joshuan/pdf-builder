@@ -20,4 +20,4 @@ if [[ -x "$LSREGISTER" ]]; then
 fi
 
 open "$DESTINATION"
-echo "Установлено: $DESTINATION"
+echo "Installed: $DESTINATION"

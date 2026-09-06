@@ -14,15 +14,21 @@ struct PDFBuilderApp: App {
         .windowToolbarStyle(.unifiedCompact)
         .defaultSize(width: 760, height: 620)
         .commands {
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates…") {
+                    Task { await UpdateController.shared.checkNow() }
+                }
+            }
+
             CommandGroup(replacing: .newItem) {
-                Button("Выбрать файлы…") {
+                Button("Choose Files…") {
                     model.chooseFiles()
                 }
                 .keyboardShortcut("o", modifiers: .command)
             }
 
             CommandGroup(after: .saveItem) {
-                Button("Собрать PDF") {
+                Button("Build PDF") {
                     model.createPDF()
                 }
                 .keyboardShortcut("s", modifiers: .command)

@@ -1,59 +1,93 @@
 # PDF Builder
 
-Маленькая нативная утилита для macOS: принимает изображения и PDF из Finder, сортирует файлы по имени, показывает порядок страниц и по одному нажатию Enter сохраняет всё одним PDF.
+PDF Builder is a small native macOS utility for turning selected images and PDFs into one PDF with a single confirmation.
 
-## Возможности
+## Features
 
-- естественная сортировка по имени (`page2` идёт раньше `page10`);
-- предпросмотр и ручная перестановка страниц;
-- два режима страницы: A4 и «Авто»;
-- автоматический выбор A4, если не менее 80% исходников близки к пропорциям A4;
-- портретная или альбомная ориентация A4 под каждый исходник;
-- PNG, JPEG, HEIC, TIFF и другие форматы, которые читает macOS;
-- существующие PDF раскрываются на отдельные страницы;
-- запуск через «Открыть с помощью», Finder Services, выбор файлов или drag-and-drop.
-- результат получает имя первой страницы и сохраняется в её папке;
-- после успешной сборки исходники перемещаются в системную Корзину;
-- завершение показывается уведомлением macOS, без отдельного окна «Готово».
-- собственная иконка приложения во всех системных размерах macOS.
+- Natural filename ordering, so `page2` comes before `page10`.
+- Page thumbnails with manual reordering and removal.
+- Exact A4 pages or an automatic size that follows each source aspect ratio.
+- Automatic A4 selection when at least 80% of the sources are close to the A4 ratio.
+- Per-page portrait or landscape A4 orientation.
+- PNG, JPEG, HEIC, TIFF, and other image formats supported by macOS.
+- Existing PDFs expand into individual pages.
+- Finder **Open With**, Finder Services, file picker, and drag-and-drop entry points.
+- The output is named after the first page and saved in the same folder.
+- Source files move to the system Trash only after the PDF has been rendered successfully.
+- Completion arrives as a macOS notification rather than another confirmation dialog.
+- Automatic update checks backed by GitHub Releases.
 
-## Сборка
+## Build
 
-Нужны только macOS 13+ и Command Line Tools for Xcode.
+PDF Builder requires macOS 13 or later and the Xcode Command Line Tools.
 
 ```sh
 make test
 make build
 ```
 
-`make test` запускает семь самодостаточных проверок core-логики без Xcode и сторонних test framework'ов.
+`make test` runs the self-contained core checks without Xcode or an external test framework. The release application is written to `dist/PDF Builder.app`.
 
-Готовое приложение появится в `dist/PDF Builder.app`.
+Create the distributable archive with a specific version and build number:
 
-## Установка
+```sh
+make package VERSION=1.2.3 BUILD=42
+```
+
+This produces `dist/PDFBuilder.zip`, the asset expected by the updater.
+
+## Install a local build
 
 ```sh
 make install
 ```
 
-По умолчанию приложение устанавливается в `~/Applications`. Другую папку можно указать так:
+The local development installer uses `~/Applications` by default. Override it when needed:
 
 ```sh
 PDF_BUILDER_INSTALL_DIR=/Applications make install
 ```
 
-После первого запуска выделите файлы в Finder и выберите один из вариантов:
+## Installing
 
-1. **ПКМ → Открыть с помощью → PDF Builder**.
-2. **ПКМ → Быстрые действия / Службы → Собрать в PDF…**.
+```sh
+curl -fsSL https://raw.githubusercontent.com/joshuan/pdf-builder/main/install.sh | sh
+```
 
-Если служба скрыта, включите её в **Системные настройки → Клавиатура → Сочетания клавиш → Службы → Файлы и папки**.
+This downloads the latest [release](https://github.com/joshuan/pdf-builder/releases), puts `PDF Builder.app` in `/Applications` when possible, and registers it with Finder so **Open With** and the Services entry work immediately. If `/Applications` is not writable, the script uses `~/Applications` instead. To install a specific release, pass its tag to the shell running the installer:
 
-macOS один раз спросит разрешение на уведомления при первом запуске. После этого обычный сценарий состоит только из выбора файлов, команды Finder, проверки порядка и Enter.
+```sh
+curl -fsSL https://raw.githubusercontent.com/joshuan/pdf-builder/main/install.sh | PDF_BUILDER_VERSION=v1.2.3 sh
+```
 
-## Как работает размер страниц
+## Finder workflow
 
-- **A4** — страница имеет точный формат A4; ориентация выбирается отдельно для каждого исходника, изображение вписывается целиком без обрезки.
-- **Авто** — пропорции страницы совпадают с пропорциями исходника, а длинная сторона нормализуется до длинной стороны A4. Это не создаёт PDF со страницами в тысячи пунктов из-за DPI исходной картинки.
+Select several files in Finder and use either:
 
-PDF сначала полностью создаётся во временном файле рядом с результатом. Только после успешной записи исходники (и старый PDF с совпадающим именем, если он есть) перемещаются в Корзину, затем временный файл занимает финальное имя. При ошибке перемещения утилита пытается вернуть уже перенесённые файлы на прежние места.
+1. **Open With → PDF Builder**.
+2. **Services / Quick Actions → Build PDF…**.
+
+If the service is hidden, enable it in **System Settings → Keyboard → Keyboard Shortcuts → Services → Files and Folders**.
+
+Check the page order and format in the window, then press Return. The result appears next to the first page. After a successful write, all included source files move to the Trash and a macOS notification reports completion.
+
+## Page sizing
+
+- **A4** uses exact A4 dimensions. Each page independently chooses portrait or landscape orientation, and the source is fitted without cropping.
+- **Auto** gives each page the source aspect ratio and normalizes its long edge to the long edge of A4. This avoids enormous PDF page dimensions caused by image DPI metadata.
+
+## Source-file safety
+
+The PDF is first rendered completely into a temporary file beside its destination. Only after that succeeds are the source files moved to the Trash. If a PDF with the destination name already exists, it moves to the Trash as part of the same confirmed operation. If final placement fails, PDF Builder attempts to restore everything it already moved.
+
+## Updates
+
+PDF Builder checks the latest GitHub Release silently at launch, at most once every 24 hours. Nothing is shown when the installed version is current or when an automatic check fails. When a newer release exists, a notification offers **Install** and **Later**. The application menu also contains **Check for Updates…** for an immediate check that always reports its result.
+
+Installing an update downloads `PDFBuilder.zip`, verifies its bundle identifier, version, and code signature, stages it on the same volume, atomically replaces the running copy, and relaunches it. A failure leaves the installed copy untouched and points to the release page as a fallback.
+
+## Publishing a release
+
+Publish a GitHub Release from a version tag such as `v1.2.3`. The release workflow runs the checks, stamps the bundle version, builds and signs the application, and attaches `PDFBuilder.zip` to the release.
+
+When the repository contains `MACOS_CERTIFICATE_P12`, `MACOS_CERTIFICATE_PASSWORD`, `MACOS_SIGN_IDENTITY`, `AC_API_KEY_P8`, `AC_API_KEY_ID`, and `AC_API_ISSUER_ID`, the workflow signs with Developer ID and notarizes the application. Without those secrets it publishes an ad-hoc signed build that remains installable through `install.sh`.

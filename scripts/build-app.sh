@@ -7,6 +7,10 @@ APP_BUNDLE="$PROJECT_ROOT/dist/PDF Builder.app"
 CONTENTS="$APP_BUNDLE/Contents"
 ICON_SOURCE="$PROJECT_ROOT/Resources/AppIcon.png"
 ICONSET="$PROJECT_ROOT/.build/AppIcon.iconset"
+VERSION="${VERSION:-1.0.0}"
+BUILD="${BUILD:-1}"
+SIGN_IDENTITY="${SIGN_IDENTITY:--}"
+CODESIGN_FLAGS="${CODESIGN_FLAGS:---options runtime}"
 source "$PROJECT_ROOT/scripts/swift-env.sh"
 
 swift build \
@@ -25,6 +29,8 @@ rm -rf "$APP_BUNDLE"
 mkdir -p "$CONTENTS/MacOS" "$CONTENTS/Resources"
 install -m 755 "$PROJECT_ROOT/.build/release/PDFBuilder" "$CONTENTS/MacOS/PDFBuilder"
 install -m 644 "$PROJECT_ROOT/Resources/Info.plist" "$CONTENTS/Info.plist"
+plutil -replace CFBundleShortVersionString -string "$VERSION" "$CONTENTS/Info.plist"
+plutil -replace CFBundleVersion -string "$BUILD" "$CONTENTS/Info.plist"
 
 rm -rf "$ICONSET"
 mkdir -p "$ICONSET"
@@ -42,5 +48,6 @@ swift "$PROJECT_ROOT/scripts/create-icns.swift" \
     "$ICONSET" \
     "$CONTENTS/Resources/AppIcon.icns"
 
-codesign --force --sign - "$APP_BUNDLE"
+read -r -a SIGN_FLAGS <<< "$CODESIGN_FLAGS"
+codesign --force "${SIGN_FLAGS[@]}" --sign "$SIGN_IDENTITY" "$APP_BUNDLE"
 echo "$APP_BUNDLE"

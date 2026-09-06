@@ -25,7 +25,7 @@ public enum DocumentLoader {
                         of: thumbnailSize(for: bounds.size),
                         for: .mediaBox
                     )
-                    let suffix = document.pageCount > 1 ? " · стр. \(index + 1)" : ""
+                    let suffix = document.pageCount > 1 ? " · page \(index + 1)" : ""
                     pages.append(
                         InputPage(
                             sourceURL: normalizedURL,

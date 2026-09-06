@@ -1,0 +1,118 @@
+name: Release
+
+# Publishing a GitHub Release builds its tag and attaches PDFBuilder.zip.
+# Developer ID and notarization are enabled automatically when the repository
+# contains the signing secrets documented below. Otherwise the workflow
+# publishes an ad-hoc signed build that can be installed with install.sh.
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Test
+        run: make test
+
+      - name: Detect signing credentials
+        id: signing
+        env:
+          CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+        run: |
+          if [ -n "$CERTIFICATE" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No Developer ID credentials found; publishing an ad-hoc signed build."
+          fi
+
+      # Required secrets: MACOS_CERTIFICATE_P12, MACOS_CERTIFICATE_PASSWORD,
+      # and MACOS_SIGN_IDENTITY.
+      - name: Import Developer ID certificate
+        if: steps.signing.outputs.available == 'true'
+        env:
+          CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ github.run_id }}
+        run: |
+          echo "$CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security set-keychain-settings -lut 3600 build.keychain
+          security import "$RUNNER_TEMP/certificate.p12" -k build.keychain \
+            -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: \
+            -s -k "$KEYCHAIN_PASSWORD" build.keychain > /dev/null
+          rm "$RUNNER_TEMP/certificate.p12"
+
+      - name: Package
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+          SIGN_IDENTITY: ${{ steps.signing.outputs.available == 'true' && secrets.MACOS_SIGN_IDENTITY || '-' }}
+          CODESIGN_FLAGS: ${{ steps.signing.outputs.available == 'true' && '--options runtime --timestamp' || '--options runtime' }}
+        run: |
+          make package \
+            VERSION="${TAG#v}" \
+            BUILD="${{ github.run_number }}" \
+            SIGN_IDENTITY="$SIGN_IDENTITY" \
+            CODESIGN_FLAGS="$CODESIGN_FLAGS"
+
+      # Notarization additionally requires AC_API_KEY_P8, AC_API_KEY_ID, and
+      # AC_API_ISSUER_ID.
+      - name: Notarize and staple
+        if: steps.signing.outputs.available == 'true'
+        env:
+          AC_API_KEY_P8: ${{ secrets.AC_API_KEY_P8 }}
+          AC_API_KEY_ID: ${{ secrets.AC_API_KEY_ID }}
+          AC_API_ISSUER_ID: ${{ secrets.AC_API_ISSUER_ID }}
+        run: |
+          key="$RUNNER_TEMP/AuthKey.p8"
+          printf '%s' "$AC_API_KEY_P8" > "$key"
+          xcrun notarytool submit dist/PDFBuilder.zip \
+            --key "$key" --key-id "$AC_API_KEY_ID" --issuer "$AC_API_ISSUER_ID" \
+            --wait
+          xcrun stapler staple "dist/PDF Builder.app"
+          rm -f "$key" dist/PDFBuilder.zip
+          ditto -c -k --keepParent "dist/PDF Builder.app" dist/PDFBuilder.zip
+          xcrun stapler validate "dist/PDF Builder.app"
+
+      - name: Attach build to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+          NOTARIZED: ${{ steps.signing.outputs.available }}
+        run: |
+          gh release upload "$TAG" dist/PDFBuilder.zip --clobber
+
+          notes="$RUNNER_TEMP/notes.md"
+          gh release view "$TAG" --json body --jq '.body // ""' > "$notes"
+          if grep -q '^## Install' "$notes"; then
+            echo "Release notes already contain installation instructions."
+            exit 0
+          fi
+          {
+            echo
+            echo "## Install"
+            echo
+            echo '```sh'
+            echo "curl -fsSL https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/main/install.sh | sh"
+            echo '```'
+            echo
+            if [ "$NOTARIZED" = "true" ]; then
+              echo "Alternatively, download \`PDFBuilder.zip\`, unpack it, and drag \`PDF Builder.app\` to \`/Applications\`."
+            else
+              echo "Alternatively, download \`PDFBuilder.zip\` and drag \`PDF Builder.app\` to \`/Applications\`. This build is signed ad-hoc, so macOS may require **Open Anyway** in **System Settings → Privacy & Security**. The command above avoids browser quarantine."
+            fi
+            echo
+            echo "Requires macOS 13 or later."
+          } >> "$notes"
+          gh release edit "$TAG" --notes-file "$notes"

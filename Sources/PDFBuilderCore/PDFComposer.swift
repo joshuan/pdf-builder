@@ -12,11 +12,11 @@ public enum PDFComposerError: LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .noPages:
-            "Нет страниц для сохранения."
+            "There are no pages to save."
         case .cannotCreateFile:
-            "Не удалось создать PDF-файл."
+            "The PDF file could not be created."
         case let .cannotReadSource(name):
-            "Не удалось прочитать «\(name)»."
+            "The source file “\(name)” could not be read."
         }
     }
 }

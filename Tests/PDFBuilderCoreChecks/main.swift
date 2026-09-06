@@ -21,7 +21,11 @@ enum PDFBuilderCoreChecks {
         try automaticPageAspectRatio()
         try outputNameAndFolder()
         try finalizeTransaction()
-        print("PDFBuilderCoreChecks: 7 checks passed")
+        try updateVersionComparison()
+        try releaseParsing()
+        try updateSchedule()
+        try updateBundleValidation()
+        print("PDFBuilderCoreChecks: 11 checks passed")
     }
 
     private static func naturalAlphabeticalSorting() throws {
@@ -126,6 +130,86 @@ enum PDFBuilderCoreChecks {
         }
     }
 
+    private static func updateVersionComparison() throws {
+        try expect(UpdateChecker.isNewer("1.2.4", than: "1.2.3"), "A patch update was missed")
+        try expect(UpdateChecker.isNewer("1.10.0", than: "1.9.0"), "Versions were compared as text")
+        try expect(!UpdateChecker.isNewer("v1.2.3", than: "1.2.3"), "Equivalent tag and bundle versions differ")
+        try expect(!UpdateChecker.isNewer("1.2", than: "1.2.0"), "A missing version component did not count as zero")
+    }
+
+    private static func releaseParsing() throws {
+        let payload = """
+        {
+          "tag_name": "v1.4.0",
+          "html_url": "https://github.com/joshuan/pdf-builder/releases/tag/v1.4.0",
+          "assets": [
+            {
+              "name": "PDFBuilder.zip",
+              "browser_download_url": "https://github.com/joshuan/pdf-builder/releases/download/v1.4.0/PDFBuilder.zip"
+            }
+          ]
+        }
+        """
+        let release = try UpdateChecker.parse(Data(payload.utf8))
+        try expect(release.version == "1.4.0", "The release version was not normalized")
+        try expect(release.download?.lastPathComponent == UpdateChecker.archiveName, "The release archive was not found")
+    }
+
+    private static func updateSchedule() throws {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        try expect(UpdateSchedule.isDue(lastCheck: nil, now: now), "The first update check was not due")
+        try expect(
+            !UpdateSchedule.isDue(lastCheck: now.addingTimeInterval(-3600), now: now),
+            "A second check was allowed too early"
+        )
+        try expect(
+            UpdateSchedule.isDue(lastCheck: now.addingTimeInterval(-UpdateSchedule.interval - 1), now: now),
+            "A daily update check was not due"
+        )
+        try expect(
+            UpdateSchedule.isDue(lastCheck: now.addingTimeInterval(UpdateSchedule.interval), now: now),
+            "A future clock value blocked update checks"
+        )
+    }
+
+    private static func updateBundleValidation() throws {
+        try withTemporaryDirectory { directory in
+            let app = directory.appendingPathComponent("PDF Builder.app", isDirectory: true)
+            let contents = app.appendingPathComponent("Contents", isDirectory: true)
+            try FileManager.default.createDirectory(at: contents, withIntermediateDirectories: true)
+
+            try writeInfoPlist(
+                at: contents.appendingPathComponent("Info.plist"),
+                identifier: "com.joshuan.pdf-builder",
+                version: "1.3.0"
+            )
+            try UpdateInstaller.validate(
+                app,
+                expecting: "v1.3.0",
+                identifier: "com.joshuan.pdf-builder"
+            )
+
+            try expectUpdateFailure(.notThisApp("com.joshuan.pdf-builder")) {
+                try UpdateInstaller.validate(
+                    app,
+                    expecting: "1.3.0",
+                    identifier: "com.example.different"
+                )
+            }
+            try expectUpdateFailure(.wrongVersion(expected: "2.0.0", found: "1.3.0")) {
+                try UpdateInstaller.validate(
+                    app,
+                    expecting: "2.0.0",
+                    identifier: "com.joshuan.pdf-builder"
+                )
+            }
+            try expect(
+                UpdateInstaller.quoted("/tmp/it's here.app") == "'/tmp/it'\\''s here.app'",
+                "The relaunch helper did not quote an apostrophe safely"
+            )
+        }
+    }
+
     private static func withTemporaryDirectory(_ body: (URL) throws -> Void) throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("PDFBuilderChecks-\(UUID().uuidString)", isDirectory: true)
@@ -171,6 +255,31 @@ enum PDFBuilderCoreChecks {
         CGImageDestinationAddImage(destination, image, nil)
         try expect(CGImageDestinationFinalize(destination), "Could not encode test PNG")
         return url
+    }
+
+    private static func writeInfoPlist(at url: URL, identifier: String, version: String) throws {
+        let info: [String: Any] = [
+            "CFBundleIdentifier": identifier,
+            "CFBundleShortVersionString": version
+        ]
+        let data = try PropertyListSerialization.data(
+            fromPropertyList: info,
+            format: .xml,
+            options: 0
+        )
+        try data.write(to: url)
+    }
+
+    private static func expectUpdateFailure(
+        _ expected: UpdateInstaller.Failure,
+        operation: () throws -> Void
+    ) throws {
+        do {
+            try operation()
+            throw CheckFailure(message: "Expected update validation to fail with \(expected)")
+        } catch let failure as UpdateInstaller.Failure {
+            try expect(failure == expected, "Unexpected update failure: \(failure)")
+        }
     }
 
     private static func require<T>(_ value: T?, _ message: String) throws -> T {

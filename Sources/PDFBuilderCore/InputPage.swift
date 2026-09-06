@@ -35,7 +35,7 @@ public enum PageFormat: String, CaseIterable, Identifiable {
     public var title: String {
         switch self {
         case .a4: "A4"
-        case .automatic: "Авто"
+        case .automatic: "Auto"
         }
     }
 }

@@ -35,8 +35,8 @@ final class BuilderModel: ObservableObject {
 
     func chooseFiles(replacing: Bool = true) {
         let panel = NSOpenPanel()
-        panel.title = replacing ? "Выберите изображения или PDF" : "Добавить файлы"
-        panel.prompt = replacing ? "Выбрать" : "Добавить"
+        panel.title = replacing ? "Choose Images or PDFs" : "Add Files"
+        panel.prompt = replacing ? "Choose" : "Add"
         panel.allowedContentTypes = [.image, .pdf]
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
@@ -114,7 +114,7 @@ final class BuilderModel: ObservableObject {
                 try? FileManager.default.removeItem(at: temporaryURL)
             }
             alert = AppAlert(
-                title: "Не удалось создать PDF",
+                title: "Could Not Create PDF",
                 message: error.localizedDescription
             )
         }
@@ -136,7 +136,7 @@ final class BuilderModel: ObservableObject {
 
         if !result.skippedFileNames.isEmpty {
             alert = AppAlert(
-                title: "Некоторые файлы пропущены",
+                title: "Some Files Were Skipped",
                 message: result.skippedFileNames.joined(separator: "\n")
             )
         }
@@ -157,8 +157,10 @@ enum CompletionNotifier {
 
     static func send(outputName: String, pageCount: Int, sourceCount: Int) {
         let content = UNMutableNotificationContent()
-        content.title = "PDF готов"
-        content.body = "\(outputName) · \(pageCount) стр. Исходников в Корзине: \(sourceCount)."
+        content.title = "PDF Ready"
+        let pageWord = pageCount == 1 ? "page" : "pages"
+        let sourceWord = sourceCount == 1 ? "source" : "sources"
+        content.body = "\(outputName) · \(pageCount) \(pageWord). \(sourceCount) \(sourceWord) moved to the Trash."
         content.sound = .default
 
         let request = UNNotificationRequest(

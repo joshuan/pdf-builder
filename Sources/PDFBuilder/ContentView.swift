@@ -51,9 +51,9 @@ struct ContentView: View {
                 .foregroundStyle(Color.accentColor)
 
             VStack(alignment: .leading, spacing: 3) {
-                Text("Собрать PDF")
+                Text("Build PDF")
                     .font(.title2.weight(.semibold))
-                Text("Проверьте порядок страниц и нажмите Enter.")
+                Text("Check the page order, then press Return.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -64,7 +64,7 @@ struct ContentView: View {
                 Button {
                     model.chooseFiles(replacing: false)
                 } label: {
-                    Label("Добавить", systemImage: "plus")
+                    Label("Add", systemImage: "plus")
                 }
             }
         }
@@ -78,13 +78,13 @@ struct ContentView: View {
             Image(systemName: "photo.on.rectangle.angled")
                 .font(.system(size: 58, weight: .light))
                 .foregroundStyle(.secondary)
-            Text("Перетащите сюда изображения или PDF")
+            Text("Drop images or PDFs here")
                 .font(.title3.weight(.medium))
-            Text("Можно также выбрать несколько файлов в Finder и открыть их через PDF Builder.")
+            Text("You can also select several files in Finder and open them with PDF Builder.")
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 430)
-            Button("Выбрать файлы…") {
+            Button("Choose Files…") {
                 model.chooseFiles()
             }
             .controlSize(.large)
@@ -118,7 +118,7 @@ struct ContentView: View {
         VStack(spacing: 14) {
             HStack(alignment: .top, spacing: 18) {
                 VStack(alignment: .leading, spacing: 5) {
-                    Text("Размер страниц")
+                    Text("Page size")
                         .font(.headline)
                     Text(formatDescription)
                         .font(.caption)
@@ -128,7 +128,7 @@ struct ContentView: View {
 
                 Spacer()
 
-                Picker("Размер страниц", selection: $model.pageFormat) {
+                Picker("Page size", selection: $model.pageFormat) {
                     ForEach(PageFormat.allCases) { format in
                         Text(format.title).tag(format)
                     }
@@ -156,10 +156,10 @@ struct ContentView: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                 Spacer()
-                Button("Очистить", role: .destructive) {
+                Button("Clear", role: .destructive) {
                     model.clear()
                 }
-                Button("Собрать PDF") {
+                Button("Build PDF") {
                     model.createPDF()
                 }
                 .buttonStyle(.borderedProminent)
@@ -174,33 +174,23 @@ struct ContentView: View {
     private var formatDescription: String {
         switch model.pageFormat {
         case .a4:
-            "Каждая страница будет A4; альбомные изображения получат альбомную ориентацию."
+            "Every page uses A4; landscape images get landscape orientation."
         case .automatic:
-            "Размер каждой страницы повторит пропорции исходника без обрезки."
+            "Each page follows its source aspect ratio without cropping."
         }
     }
 
     private var summary: String {
-        let fileWord = russianPlural(model.sourceFileCount, one: "файл", few: "файла", many: "файлов")
-        let pageWord = russianPlural(model.pages.count, one: "страница", few: "страницы", many: "страниц")
+        let fileWord = model.sourceFileCount == 1 ? "file" : "files"
+        let pageWord = model.pages.count == 1 ? "page" : "pages"
         return "\(model.sourceFileCount) \(fileWord) · \(model.pages.count) \(pageWord)"
     }
 
     private var outputDescription: String {
         if model.willReplaceExistingOutput {
-            return "Файл с таким именем и исходники будут перемещены в Корзину; результат появится рядом с первой страницей."
+            return "The existing file and all sources will move to the Trash; the result will appear next to the first page."
         }
-        return "Результат появится рядом с первой страницей; исходники будут перемещены в Корзину."
-    }
-
-    private func russianPlural(_ number: Int, one: String, few: String, many: String) -> String {
-        let lastTwo = number % 100
-        if 11...14 ~= lastTwo { return many }
-        switch number % 10 {
-        case 1: return one
-        case 2...4: return few
-        default: return many
-        }
+        return "The result will appear next to the first page; all sources will move to the Trash."
     }
 }
 
@@ -242,19 +232,19 @@ private struct PageRow: View {
                 Button(action: moveUp) {
                     Image(systemName: "chevron.up")
                 }
-                .help("Переместить выше")
+                .help("Move up")
                 .disabled(!canMoveUp)
 
                 Button(action: moveDown) {
                     Image(systemName: "chevron.down")
                 }
-                .help("Переместить ниже")
+                .help("Move down")
                 .disabled(!canMoveDown)
 
                 Button(action: remove) {
                     Image(systemName: "trash")
                 }
-                .help("Убрать страницу")
+                .help("Remove page")
             }
             .buttonStyle(.borderless)
         }

@@ -8,11 +8,11 @@ public enum OutputTransactionError: LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .missingFirstPage:
-            "Не удалось определить имя итогового PDF."
+            "The output PDF name could not be determined."
         case let .trashFailed(message):
-            "Не удалось переместить исходники в Корзину. \(message)"
+            "The source files could not be moved to the Trash. \(message)"
         case let .moveFailed(message):
-            "Не удалось поместить готовый PDF рядом с исходниками. \(message)"
+            "The finished PDF could not be placed next to the source files. \(message)"
         }
     }
 }

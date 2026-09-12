@@ -13,7 +13,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
-        BuilderModel.shared.replaceFiles(with: urls)
+        // Finder may send one open event per selected file.
+        BuilderModel.shared.addFiles(urls)
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -50,7 +51,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             return
         }
 
-        BuilderModel.shared.replaceFiles(with: urls)
+        BuilderModel.shared.addFiles(urls)
     }
 
     private func handle(_ action: UpdateNotifier.Action) {

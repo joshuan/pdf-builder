@@ -6,7 +6,7 @@ struct PDFBuilderApp: App {
     @StateObject private var model = BuilderModel.shared
 
     var body: some Scene {
-        WindowGroup {
+        Window("PDF Builder", id: "builder") {
             ContentView()
                 .environmentObject(model)
         }

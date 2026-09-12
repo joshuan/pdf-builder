@@ -184,7 +184,7 @@ final class BuilderModel: ObservableObject {
         }
 
         NSApp.activate(ignoringOtherApps: true)
-        NSApp.windows.first?.makeKeyAndOrderFront(nil)
+        NSApp.windows.first(where: \.canBecomeMain)?.makeKeyAndOrderFront(nil)
     }
 
     private func pageKey(_ page: InputPage) -> String {

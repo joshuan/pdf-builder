@@ -27,7 +27,7 @@ make test
 make build
 ```
 
-`make test` runs the self-contained core checks without Xcode or an external test framework. The release application is written to `dist/PDF Builder.app`.
+`make test` runs the core and Finder open-event checks without Xcode or an external test framework. The release application is written to `dist/PDF Builder.app`.
 
 Create the distributable archive with a specific version and build number:
 
@@ -69,6 +69,8 @@ Select several files in Finder and use either:
 2. **Services / Quick Actions → Build PDF…**.
 
 If the service is hidden, enable it in **System Settings → Keyboard → Keyboard Shortcuts → Services → Files and Folders**.
+
+Finder opens all selected files in one PDF Builder window, even when macOS delivers them as separate open events. Opening more files adds them to the current list without replacing the pages already there; repeated files are ignored.
 
 Check the page order and format in the window, then press Return. The result appears next to the first page. After a successful write, a macOS notification reports completion and the application quits automatically. If saving fails, the window stays open and shows the error.
 

@@ -58,8 +58,7 @@ public enum DocumentLoader {
     }
 
     public static func sorted(urls: [URL]) -> [URL] {
-        urls
-            .map(\.standardizedFileURL)
+        Set(urls.map(\.standardizedFileURL))
             .filter { !$0.hasDirectoryPath }
             .sorted { lhs, rhs in
                 let comparison = lhs.lastPathComponent.localizedStandardCompare(rhs.lastPathComponent)

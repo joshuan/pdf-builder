@@ -10,3 +10,5 @@ swift run \
     --disable-sandbox \
     --cache-path "$PROJECT_ROOT/.build/swiftpm-cache" \
     PDFBuilderCoreChecks
+
+"$PROJECT_ROOT/scripts/test-open-events.sh"

@@ -124,7 +124,7 @@ public enum DocumentLoader {
     }
 
     private static func thumbnailSize(for sourceSize: CGSize) -> CGSize {
-        let boundingSize = CGSize(width: 96, height: 112)
+        let boundingSize = PreviewSizing.size(forWidth: PreviewSizing.maximumWidth)
         guard sourceSize.width > 0, sourceSize.height > 0 else { return boundingSize }
         let scale = min(boundingSize.width / sourceSize.width, boundingSize.height / sourceSize.height)
         return CGSize(width: max(1, sourceSize.width * scale), height: max(1, sourceSize.height * scale))

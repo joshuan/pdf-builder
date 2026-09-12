@@ -8,6 +8,7 @@ PDF Builder is a small native macOS utility for turning selected images and PDFs
 - Page thumbnails with drag-and-drop reordering, arrow controls, and removal.
 - Exact A4 pages or an automatic size that follows each source aspect ratio.
 - Thumbnails reflect the selected output page size, orientation, and whitespace.
+- Resize all thumbnails by dragging the handle beside any preview; the size is remembered between launches.
 - Automatic A4 selection when at least 80% of the sources are close to the A4 ratio.
 - Per-page portrait or landscape A4 orientation.
 - PNG, JPEG, HEIC, TIFF, and other image formats supported by macOS.
@@ -75,6 +76,8 @@ Finder opens all selected files in one PDF Builder window, even when macOS deliv
 Check the page order and format in the window, then press Return. The result appears next to the first page. After a successful write, a macOS notification reports completion and the application quits automatically. If saving fails, the window stays open and shows the error.
 
 Drag a page to a new position in the list, or use its arrow buttons. The **File name** field follows the first page until you edit it; a custom name stays unchanged when you reorder pages. Use the reset button beside the field to return to the first page name. The field edits only the base name; the `.pdf` extension is fixed and shown beside it.
+
+Hover just to the right of a preview to reveal its resize handle, then drag horizontally. All previews resize together, and the chosen size is saved for the next launch. After clicking the handle, you can also use the left and right arrow keys to adjust the size.
 
 The **Удалить исходники** (Delete source files) checkbox above the file name is enabled by default. Clear it to keep all source files in place. When keeping a source PDF whose name matches the output, choose a different output name; the app blocks saving over a source that should be kept.
 

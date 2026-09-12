@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 
 struct ContentView: View {
     @EnvironmentObject private var model: BuilderModel
+    @AppStorage("previewWidth") private var previewWidth = Double(PreviewSizing.defaultWidth)
 
     var body: some View {
         VStack(spacing: 0) {
@@ -102,6 +103,7 @@ struct ContentView: View {
                     index: index,
                     page: page,
                     pageFormat: model.pageFormat,
+                    previewWidth: $previewWidth,
                     canMoveUp: index > 0,
                     canMoveDown: index < model.pages.count - 1,
                     moveUp: { model.moveUp(page) },
@@ -229,6 +231,7 @@ private struct PageRow: View {
     let index: Int
     let page: InputPage
     let pageFormat: PageFormat
+    @Binding var previewWidth: Double
     let canMoveUp: Bool
     let canMoveDown: Bool
     let moveUp: () -> Void
@@ -278,7 +281,8 @@ private struct PageRow: View {
 
     private var pagePreview: some View {
         let outputSize = PDFComposer.pageSize(for: page, format: pageFormat)
-        let scale = min(52 / outputSize.width, 64 / outputSize.height)
+        let previewSize = PreviewSizing.size(forWidth: previewWidth)
+        let scale = min(previewSize.width / outputSize.width, previewSize.height / outputSize.height)
 
         return Image(nsImage: page.thumbnail)
             .resizable()
@@ -291,7 +295,12 @@ private struct PageRow: View {
                     .strokeBorder(Color.black.opacity(0.12), lineWidth: 0.5)
             }
             .shadow(color: .black.opacity(0.12), radius: 2, y: 1)
-            .frame(width: 52, height: 64)
+            .frame(width: previewSize.width, height: max(64, outputSize.height * scale))
+            .overlay(alignment: .trailing) {
+                PreviewResizeHandle(width: $previewWidth)
+                    .frame(width: 12)
+                    .offset(x: 12)
+            }
     }
 
     private var dimensions: String {

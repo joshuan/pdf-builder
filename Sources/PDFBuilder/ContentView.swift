@@ -53,7 +53,7 @@ struct ContentView: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text("Build PDF")
                     .font(.title2.weight(.semibold))
-                Text("Check the page order, then press Return.")
+                Text("Drag pages to reorder, then press Return.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -101,6 +101,7 @@ struct ContentView: View {
                 PageRow(
                     index: index,
                     page: page,
+                    pageFormat: model.pageFormat,
                     canMoveUp: index > 0,
                     canMoveDown: index < model.pages.count - 1,
                     moveUp: { model.moveUp(page) },
@@ -109,6 +110,7 @@ struct ContentView: View {
                 )
                 .padding(.vertical, 4)
             }
+            .onMove(perform: model.movePages)
         }
         .listStyle(.inset)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -138,17 +140,40 @@ struct ContentView: View {
                 .frame(width: 210)
             }
 
+            Toggle("Удалить исходники", isOn: $model.deleteSources)
+                .toggleStyle(.checkbox)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .help("Move source files to the Trash after saving the PDF.")
+                .disabled(model.isSaving)
+
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Image(systemName: model.willReplaceExistingOutput ? "exclamationmark.triangle.fill" : "arrow.right.circle.fill")
                     .foregroundStyle(model.willReplaceExistingOutput ? Color.orange : Color.accentColor)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(model.outputURL?.lastPathComponent ?? "—")
-                        .font(.body.weight(.medium))
-                    Text(outputDescription)
+                    HStack(spacing: 8) {
+                        Text("File name")
+                            .font(.body.weight(.medium))
+                        TextField("File name", text: $model.outputName)
+                            .textFieldStyle(.roundedBorder)
+                            .labelsHidden()
+                            .accessibilityLabel("Output file name")
+                            .onSubmit { model.createPDF() }
+                        Text(".pdf")
+                            .foregroundStyle(.secondary)
+                            .fixedSize()
+                        Button(action: model.resetOutputName) {
+                            Image(systemName: "arrow.counterclockwise")
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Use the first page name")
+                        .accessibilityLabel("Use the first page name")
+                        .disabled(model.usesDefaultOutputName)
+                    }
+                    Text(model.outputNameError ?? outputDescription)
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(model.outputNameError == nil ? Color.secondary : Color.red)
                 }
-                Spacer()
+                .disabled(model.isSaving)
             }
 
             HStack {
@@ -164,7 +189,7 @@ struct ContentView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
-                .disabled(model.isSaving)
+                .disabled(!model.canCreatePDF)
             }
         }
         .padding(.horizontal, 22)
@@ -187,6 +212,12 @@ struct ContentView: View {
     }
 
     private var outputDescription: String {
+        if !model.deleteSources {
+            if model.willReplaceExistingOutput {
+                return "The existing output will move to the Trash; source files will be kept."
+            }
+            return "The result will appear next to the first page; source files will be kept."
+        }
         if model.willReplaceExistingOutput {
             return "The existing file and all sources will move to the Trash; the result will appear next to the first page."
         }
@@ -197,6 +228,7 @@ struct ContentView: View {
 private struct PageRow: View {
     let index: Int
     let page: InputPage
+    let pageFormat: PageFormat
     let canMoveUp: Bool
     let canMoveDown: Bool
     let moveUp: () -> Void
@@ -210,13 +242,7 @@ private struct PageRow: View {
                 .foregroundStyle(.secondary)
                 .frame(width: 28, alignment: .trailing)
 
-            Image(nsImage: page.thumbnail)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 52, height: 64)
-                .background(Color.white)
-                .clipShape(RoundedRectangle(cornerRadius: 4))
-                .shadow(color: .black.opacity(0.12), radius: 2, y: 1)
+            pagePreview
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(page.displayName)
@@ -248,6 +274,24 @@ private struct PageRow: View {
             }
             .buttonStyle(.borderless)
         }
+    }
+
+    private var pagePreview: some View {
+        let outputSize = PDFComposer.pageSize(for: page, format: pageFormat)
+        let scale = min(52 / outputSize.width, 64 / outputSize.height)
+
+        return Image(nsImage: page.thumbnail)
+            .resizable()
+            .aspectRatio(page.imageSize, contentMode: .fit)
+            .frame(width: outputSize.width * scale, height: outputSize.height * scale)
+            .background(Color.white)
+            .clipped()
+            .overlay {
+                Rectangle()
+                    .strokeBorder(Color.black.opacity(0.12), lineWidth: 0.5)
+            }
+            .shadow(color: .black.opacity(0.12), radius: 2, y: 1)
+            .frame(width: 52, height: 64)
     }
 
     private var dimensions: String {

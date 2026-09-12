@@ -32,7 +32,7 @@ struct PDFBuilderApp: App {
                     model.createPDF()
                 }
                 .keyboardShortcut("s", modifiers: .command)
-                .disabled(model.pages.isEmpty)
+                .disabled(!model.canCreatePDF)
             }
         }
     }

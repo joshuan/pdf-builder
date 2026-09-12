@@ -17,9 +17,26 @@ final class BuilderModel: ObservableObject {
 
     @Published var pages: [InputPage] = []
     @Published var pageFormat: PageFormat = .a4
+    @Published var deleteSources = true
     @Published var alert: AppAlert?
     @Published var isSaving = false
     @Published var isDropTargeted = false
+    @Published private var customOutputName: String?
+
+    var outputName: String {
+        get {
+            customOutputName ?? pages.first.map {
+                $0.sourceURL.deletingPathExtension().lastPathComponent
+            } ?? ""
+        }
+        set { customOutputName = newValue }
+    }
+
+    var usesDefaultOutputName: Bool { customOutputName == nil }
+
+    func resetOutputName() {
+        customOutputName = nil
+    }
 
     var sourceFileCount: Int {
         Set(pages.map(\.sourceURL)).count
@@ -49,6 +66,10 @@ final class BuilderModel: ObservableObject {
 
     func remove(_ page: InputPage) {
         pages.removeAll { $0.id == page.id }
+        if pages.isEmpty {
+            resetOutputName()
+            deleteSources = true
+        }
     }
 
     func moveUp(_ page: InputPage) {
@@ -61,14 +82,33 @@ final class BuilderModel: ObservableObject {
         pages.swapAt(index, index + 1)
     }
 
+    func movePages(from offsets: IndexSet, to destination: Int) {
+        guard !isSaving else { return }
+        pages.move(fromOffsets: offsets, toOffset: destination)
+    }
+
     func clear() {
         pages = []
         pageFormat = .a4
+        deleteSources = true
+        resetOutputName()
     }
 
     var outputURL: URL? {
-        try? OutputTransaction.outputURL(for: pages)
+        try? OutputTransaction.outputURL(for: pages, baseName: outputName, deleteSources: deleteSources)
     }
+
+    var outputNameError: String? {
+        guard !pages.isEmpty else { return nil }
+        do {
+            _ = try OutputTransaction.outputURL(for: pages, baseName: outputName, deleteSources: deleteSources)
+            return nil
+        } catch {
+            return error.localizedDescription
+        }
+    }
+
+    var canCreatePDF: Bool { !isSaving && outputURL != nil }
 
     var willReplaceExistingOutput: Bool {
         guard let outputURL,
@@ -78,14 +118,13 @@ final class BuilderModel: ObservableObject {
     }
 
     func createPDF() {
-        guard !pages.isEmpty else { return }
+        guard canCreatePDF else { return }
 
         isSaving = true
-        defer { isSaving = false }
 
         var temporaryURL: URL?
         do {
-            let finalURL = try OutputTransaction.outputURL(for: pages)
+            let finalURL = try OutputTransaction.outputURL(for: pages, baseName: outputName, deleteSources: deleteSources)
             let renderedURL = OutputTransaction.temporaryURL(nextTo: finalURL)
             temporaryURL = renderedURL
 
@@ -93,23 +132,24 @@ final class BuilderModel: ObservableObject {
             try OutputTransaction.finalize(
                 temporaryURL: renderedURL,
                 pages: pages,
-                outputURL: finalURL
+                outputURL: finalURL,
+                deleteSources: deleteSources
             )
 
             let pageCount = pages.count
             let sourceCount = sourceFileCount
-            pages = []
-            pageFormat = .a4
-            CompletionNotifier.send(
-                outputName: finalURL.lastPathComponent,
-                pageCount: pageCount,
-                sourceCount: sourceCount
-            )
-
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                NSApp.windows.first(where: \.isVisible)?.performClose(nil)
+            let didDeleteSources = deleteSources
+            Task {
+                await CompletionNotifier.send(
+                    outputName: finalURL.lastPathComponent,
+                    pageCount: pageCount,
+                    sourceCount: sourceCount,
+                    deletedSources: didDeleteSources
+                )
+                NSApp.terminate(nil)
             }
         } catch {
+            isSaving = false
             if let temporaryURL {
                 try? FileManager.default.removeItem(at: temporaryURL)
             }
@@ -126,6 +166,8 @@ final class BuilderModel: ObservableObject {
 
         if replacing {
             importedPages = result.pages
+            resetOutputName()
+            deleteSources = true
         } else {
             let existingKeys = Set(pages.map(pageKey))
             importedPages = pages + result.pages.filter { !existingKeys.contains(pageKey($0)) }
@@ -155,12 +197,13 @@ enum CompletionNotifier {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
     }
 
-    static func send(outputName: String, pageCount: Int, sourceCount: Int) {
+    static func send(outputName: String, pageCount: Int, sourceCount: Int, deletedSources: Bool) async {
         let content = UNMutableNotificationContent()
         content.title = "PDF Ready"
         let pageWord = pageCount == 1 ? "page" : "pages"
         let sourceWord = sourceCount == 1 ? "source" : "sources"
-        content.body = "\(outputName) · \(pageCount) \(pageWord). \(sourceCount) \(sourceWord) moved to the Trash."
+        let sourceAction = deletedSources ? "moved to the Trash" : "kept"
+        content.body = "\(outputName) · \(pageCount) \(pageWord). \(sourceCount) \(sourceWord) \(sourceAction)."
         content.sound = .default
 
         let request = UNNotificationRequest(
@@ -168,6 +211,7 @@ enum CompletionNotifier {
             content: content,
             trigger: nil
         )
-        UNUserNotificationCenter.current().add(request)
+        // Wait for submission before quitting, even if notifications are denied.
+        try? await UNUserNotificationCenter.current().add(request)
     }
 }

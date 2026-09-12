@@ -5,15 +5,16 @@ PDF Builder is a small native macOS utility for turning selected images and PDFs
 ## Features
 
 - Natural filename ordering, so `page2` comes before `page10`.
-- Page thumbnails with manual reordering and removal.
+- Page thumbnails with drag-and-drop reordering, arrow controls, and removal.
 - Exact A4 pages or an automatic size that follows each source aspect ratio.
+- Thumbnails reflect the selected output page size, orientation, and whitespace.
 - Automatic A4 selection when at least 80% of the sources are close to the A4 ratio.
 - Per-page portrait or landscape A4 orientation.
 - PNG, JPEG, HEIC, TIFF, and other image formats supported by macOS.
 - Existing PDFs expand into individual pages.
 - Finder **Open With**, Finder Services, file picker, and drag-and-drop entry points.
-- The output is named after the first page and saved in the same folder.
-- Source files move to the system Trash only after the PDF has been rendered successfully.
+- An editable output file name, defaulting to the first page name, saved in the same folder as that page.
+- Source files move to the system Trash only after the PDF has been rendered successfully; an enabled-by-default checkbox lets you keep them instead.
 - Completion arrives as a macOS notification rather than another confirmation dialog.
 - Automatic update checks backed by GitHub Releases.
 
@@ -69,7 +70,11 @@ Select several files in Finder and use either:
 
 If the service is hidden, enable it in **System Settings → Keyboard → Keyboard Shortcuts → Services → Files and Folders**.
 
-Check the page order and format in the window, then press Return. The result appears next to the first page. After a successful write, all included source files move to the Trash and a macOS notification reports completion.
+Check the page order and format in the window, then press Return. The result appears next to the first page. After a successful write, a macOS notification reports completion and the application quits automatically. If saving fails, the window stays open and shows the error.
+
+Drag a page to a new position in the list, or use its arrow buttons. The **File name** field follows the first page until you edit it; a custom name stays unchanged when you reorder pages. Use the reset button beside the field to return to the first page name. The field edits only the base name; the `.pdf` extension is fixed and shown beside it.
+
+The **Удалить исходники** (Delete source files) checkbox above the file name is enabled by default. Clear it to keep all source files in place. When keeping a source PDF whose name matches the output, choose a different output name; the app blocks saving over a source that should be kept.
 
 ## Page sizing
 
@@ -78,7 +83,7 @@ Check the page order and format in the window, then press Return. The result app
 
 ## Source-file safety
 
-The PDF is first rendered completely into a temporary file beside its destination. Only after that succeeds are the source files moved to the Trash. If a PDF with the destination name already exists, it moves to the Trash as part of the same confirmed operation. If final placement fails, PDF Builder attempts to restore everything it already moved.
+The PDF is first rendered completely into a temporary file beside its destination. Only after that succeeds are the source files moved to the Trash, if source deletion is enabled. An existing output PDF moves to the Trash before replacement. When source deletion is disabled, an output that would replace a source is rejected. If final placement fails, PDF Builder attempts to restore everything it already moved.
 
 ## Updates
 

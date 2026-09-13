@@ -26,7 +26,20 @@ enum PDFBuilderOpenChecks {
 
         delegate.application(application, open: [second, first, first])
         try expect(model.pages.map(\.sourceURL) == [first, second], "A grouped Finder event lost, duplicated, or misordered files")
+        try expect(model.selectedPageID == model.pages.first?.id, "The first imported page was not selected")
+        model.moveSelection(by: 1)
+        let selectedID = model.selectedPageID
+        try expect(model.selectedPage?.sourceURL == second, "Down did not select the next page")
+        model.moveSelection(by: 1)
+        try expect(model.selectedPageID == selectedID, "Selection wrapped past the last page")
+        model.moveUp(model.pages[1])
+        try expect(model.selectedPageID == selectedID, "Reordering lost selection identity")
+        model.moveSelection(by: 1)
+        try expect(model.selectedPage?.sourceURL == first, "Selection did not follow the reordered list")
+        model.remove(model.pages[1])
+        try expect(model.selectedPageID == selectedID, "Removing selection did not select its nearest remaining neighbor")
         model.clear()
+        try expect(model.selectedPage == nil && model.selectedPageID == nil, "Clearing left a stale selection")
 
         delegate.application(application, open: [first])
         delegate.application(application, open: [second])
@@ -58,7 +71,7 @@ enum PDFBuilderOpenChecks {
             try expect(error == nil, "Finder Service error: \(error ?? "unknown")")
         }
         try expect(error == nil && model.pages.map(\.sourceURL) == [first, second], "Separate Finder Service requests replaced pages")
-        print("PDFBuilderOpenChecks: grouped and separate Finder events, duplicates, export settings, multipage PDFs, and Services passed")
+        print("PDFBuilderOpenChecks: Finder events, duplicates, export settings, PDFs, Services, selection and keyboard navigation passed")
     }
 
     private static func writeImage(_ url: URL) throws -> URL {

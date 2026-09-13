@@ -15,7 +15,14 @@ struct AppAlert: Identifiable {
 final class BuilderModel: ObservableObject {
     static let shared = BuilderModel()
 
-    @Published var pages: [InputPage] = []
+    @Published var pages: [InputPage] = [] {
+        didSet {
+            guard !pages.contains(where: { $0.id == selectedPageID }) else { return }
+            let previousIndex = oldValue.firstIndex(where: { $0.id == selectedPageID }) ?? 0
+            selectedPageID = pages.isEmpty ? nil : pages[min(previousIndex, pages.count - 1)].id
+        }
+    }
+    @Published var selectedPageID: InputPage.ID?
     @Published var pageFormat: PageFormat = .a4
     @Published var deleteSources = true
     @Published var alert: AppAlert?
@@ -40,6 +47,16 @@ final class BuilderModel: ObservableObject {
 
     var sourceFileCount: Int {
         Set(pages.map(\.sourceURL)).count
+    }
+
+    var selectedPage: InputPage? {
+        pages.first { $0.id == selectedPageID }
+    }
+
+    func moveSelection(by offset: Int) {
+        guard !pages.isEmpty else { return }
+        let index = pages.firstIndex { $0.id == selectedPageID } ?? 0
+        selectedPageID = pages[min(max(index + offset, 0), pages.count - 1)].id
     }
 
     func replaceFiles(with urls: [URL]) {
@@ -166,6 +183,7 @@ final class BuilderModel: ObservableObject {
 
         if replacing {
             importedPages = result.pages
+            selectedPageID = nil
             resetOutputName()
             deleteSources = true
         } else {

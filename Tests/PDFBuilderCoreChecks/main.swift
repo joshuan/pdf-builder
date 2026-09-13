@@ -31,7 +31,42 @@ enum PDFBuilderCoreChecks {
         try releaseParsing()
         try updateSchedule()
         try updateBundleValidation()
-        print("PDFBuilderCoreChecks: 17 checks passed")
+        try quickLookPagePreviews()
+        print("PDFBuilderCoreChecks: 18 checks passed")
+    }
+
+    private static func quickLookPagePreviews() throws {
+        try withTemporaryDirectory { directory in
+            let first = try writePNG(directory: directory, name: "portrait.png", size: CGSize(width: 210, height: 297), color: .red)
+            let second = try writePNG(directory: directory, name: "landscape.png", size: CGSize(width: 160, height: 90), color: .blue)
+            let images = DocumentLoader.load(urls: [first, second]).pages
+            let sourceURL = directory.appendingPathComponent("source.pdf")
+            try PDFComposer.write(pages: images, format: .automatic, to: sourceURL)
+            let source = try require(PDFDocument(url: sourceURL), "Missing source PDF")
+            source.page(at: 1)?.rotation = 90
+            try expect(source.write(to: sourceURL), "Could not set test page rotation")
+            let original = try Data(contentsOf: sourceURL)
+            let pages = DocumentLoader.load(urls: [sourceURL]).pages
+            let store = PagePreviewStore(temporaryDirectory: directory)
+            let firstURL = try store.previewURL(for: pages[0])
+            let secondURL = try store.previewURL(for: pages[1])
+            try expect(firstURL != secondURL, "Separate PDF rows share a preview")
+            let cachedURL = try store.previewURL(for: pages[1])
+            try expect(cachedURL == secondURL, "Preview cache was not reused")
+            let firstPreview = try require(PDFDocument(url: firstURL), "Unreadable first preview")
+            let secondPreview = try require(PDFDocument(url: secondURL), "Unreadable second preview")
+            try expect(firstPreview.pageCount == 1 && secondPreview.pageCount == 1, "Quick Look included extra PDF pages")
+            try expect(firstPreview.page(at: 0)?.bounds(for: .mediaBox) == source.page(at: 0)?.bounds(for: .mediaBox), "Wrong first page preview")
+            try expect(secondPreview.page(at: 0)?.bounds(for: .mediaBox) == source.page(at: 1)?.bounds(for: .mediaBox), "Wrong second page preview")
+            try expect(secondPreview.page(at: 0)?.rotation == 90, "Quick Look lost page rotation")
+            let imageURL = try store.previewURL(for: images[0])
+            try expect(imageURL == images[0].sourceURL, "An image preview used a thumbnail instead of its original")
+            store.clear()
+            try expect(!FileManager.default.fileExists(atPath: firstURL.path), "Temporary preview was not removed")
+            let currentSource = try Data(contentsOf: sourceURL)
+            try expect(currentSource == original, "Quick Look modified the source PDF")
+            try expect(FileManager.default.fileExists(atPath: first.path), "Quick Look cleanup deleted an image")
+        }
     }
 
     private static func naturalAlphabeticalSorting() throws {

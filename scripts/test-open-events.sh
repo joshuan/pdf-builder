@@ -20,6 +20,7 @@ swiftc -module-cache-path "$CLANG_MODULE_CACHE_PATH" -parse-as-library \
     -Xlinker -rpath -Xlinker "$CHECK_DIR" \
     "$PROJECT_ROOT/Sources/PDFBuilder/AppDelegate.swift" \
     "$PROJECT_ROOT/Sources/PDFBuilder/BuilderModel.swift" \
+    "$PROJECT_ROOT/Sources/PDFBuilder/PageQuickLookController.swift" \
     "$PROJECT_ROOT/Sources/PDFBuilder/UpdateController.swift" \
     "$PROJECT_ROOT/Sources/PDFBuilder/UpdateNotifier.swift" \
     "$PROJECT_ROOT/Tests/PDFBuilderOpenChecks/main.swift" \

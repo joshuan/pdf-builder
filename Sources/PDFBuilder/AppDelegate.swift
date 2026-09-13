@@ -1,8 +1,21 @@
 import AppKit
+import QuickLookUI
 @preconcurrency import UserNotifications
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
+    override func acceptsPreviewPanelControl(_ panel: QLPreviewPanel!) -> Bool {
+        PageQuickLookController.shared.isAvailable
+    }
+
+    override func beginPreviewPanelControl(_ panel: QLPreviewPanel!) {
+        PageQuickLookController.shared.beginControl(panel)
+    }
+
+    override func endPreviewPanelControl(_ panel: QLPreviewPanel!) {
+        PageQuickLookController.shared.endControl(panel)
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.servicesProvider = self
         NSUpdateDynamicServices()
@@ -19,6 +32,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         true
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        PageQuickLookController.shared.shutdown()
     }
 
     nonisolated func userNotificationCenter(

@@ -13,6 +13,7 @@ PDF Builder is a small native macOS utility for turning selected images and PDFs
 - Per-page portrait or landscape A4 orientation.
 - PNG, JPEG, HEIC, TIFF, and other image formats supported by macOS.
 - Existing PDFs expand into individual pages.
+- Quick Look with Space and live preview updates while navigating the page list with arrow keys.
 - Finder **Open With**, Finder Services, file picker, and drag-and-drop entry points.
 - An editable output file name, defaulting to the first page name, saved in the same folder as that page.
 - Source files move to the system Trash only after the PDF has been rendered successfully; an enabled-by-default checkbox lets you keep them instead.
@@ -25,6 +26,7 @@ PDF Builder requires macOS 13 or later and the Xcode Command Line Tools.
 
 ```sh
 make test
+make test-pdf-to-jpg
 make build
 ```
 
@@ -36,7 +38,9 @@ Create the distributable archive with a specific version and build number:
 make package VERSION=1.2.3 BUILD=42
 ```
 
-This produces `dist/PDFBuilder.zip`, the asset expected by the updater.
+This produces `dist/PDFBuilder.zip`, the asset expected by the updater, plus
+`dist/PDFBuilder.workflow.zip` and `dist/PDFtoJPG.workflow.zip` for the standalone
+Finder Quick Actions.
 
 ## Install a local build
 
@@ -71,15 +75,41 @@ Select several files in Finder and use either:
 
 If the service is hidden, enable it in **System Settings → Keyboard → Keyboard Shortcuts → Services → Files and Folders**.
 
+For a **PDF Builder** item in Finder's context menu, download `PDFBuilder.workflow.zip`
+from the [latest release](https://github.com/joshuan/pdf-builder/releases/latest),
+unpack it, and double-click `PDF Builder.workflow` to install it. Or install from source:
+
+```sh
+make install-pdf-builder-action
+```
+
+Select images and/or PDFs, right-click, and choose **PDF Builder** (macOS may group
+it under **Services**). This opens all selected files in the installed application's
+normal preview window. The launcher is self-contained and keeps working after app
+updates. `make pdf-builder-action` builds the portable `dist/PDF Builder.workflow`
+without installing it.
+
 Finder opens all selected files in one PDF Builder window, even when macOS delivers them as separate open events. Opening more files adds them to the current list without replacing the pages already there; repeated files are ignored.
 
 Check the page order and format in the window, then press Return. The result appears next to the first page. After a successful write, a macOS notification reports completion and the application quits automatically. If saving fails, the window stays open and shows the error.
 
 Drag a page to a new position in the list, or use its arrow buttons. The **File name** field follows the first page until you edit it; a custom name stays unchanged when you reorder pages. Use the reset button beside the field to return to the first page name. The field edits only the base name; the `.pdf` extension is fixed and shown beside it.
 
+The first page is selected automatically. Use **↑ / ↓** to move the selection and
+**Space** (or **Quick Look / ⌘Y**) to open the standard macOS preview. The list keeps
+keyboard focus, so moving to another row updates the open preview. **Space** or
+**Escape** closes it. Each PDF row previews its own page at full quality; images
+use their original files. Selection follows a page when it is reordered, and
+removing the selected page selects the nearest remaining page.
+
 Hover just to the right of a preview to reveal its resize handle, then drag horizontally. All previews resize together, and the chosen size is saved for the next launch. After clicking the handle, you can also use the left and right arrow keys to adjust the size.
 
 The **Удалить исходники** (Delete source files) checkbox above the file name is enabled by default. Clear it to keep all source files in place. When keeping a source PDF whose name matches the output, choose a different output name; the app blocks saving over a source that should be kept.
+
+For the reverse operation, install the standalone [PDF → JPG Automator Quick Action](automator/README.md)
+by unpacking `PDFtoJPG.workflow.zip` from the release and double-clicking
+`PDF to JPG.workflow`, or with `make install-pdf-to-jpg`. It exports each selected PDF into numbered JPEGs next to
+the original and moves the PDF to the Trash only after every page has been saved and checked.
 
 ## Page sizing
 
@@ -98,6 +128,6 @@ Installing an update downloads `PDFBuilder.zip`, verifies its bundle identifier,
 
 ## Publishing a release
 
-Publish a GitHub Release from a version tag such as `v1.2.3`. The release workflow runs the checks, stamps the bundle version, builds and signs the application, and attaches `PDFBuilder.zip` to the release.
+Publish a GitHub Release from a version tag such as `0.3.1`. The release workflow runs the app and PDF-to-JPG checks, stamps the bundle version, builds and signs the application, and attaches `PDFBuilder.zip`, `PDFBuilder.workflow.zip`, and `PDFtoJPG.workflow.zip` to the release.
 
 When the repository contains `MACOS_CERTIFICATE_P12`, `MACOS_CERTIFICATE_PASSWORD`, `MACOS_SIGN_IDENTITY`, `AC_API_KEY_P8`, `AC_API_KEY_ID`, and `AC_API_ISSUER_ID`, the workflow signs with Developer ID and notarizes the application. Without those secrets it publishes an ad-hoc signed build that remains installable through `install.sh`.

@@ -1,6 +1,6 @@
 name: Release
 
-# Publishing a GitHub Release builds its tag and attaches PDFBuilder.zip.
+# Publishing a GitHub Release builds its tag and attaches the app and Quick Actions.
 # Developer ID and notarization are enabled automatically when the repository
 # contains the signing secrets documented below. Otherwise the workflow
 # publishes an ad-hoc signed build that can be installed with install.sh.
@@ -20,7 +20,7 @@ jobs:
           ref: ${{ github.event.release.tag_name }}
 
       - name: Test
-        run: make test
+        run: make test test-pdf-to-jpg
 
       - name: Detect signing credentials
         id: signing
@@ -91,7 +91,8 @@ jobs:
           TAG: ${{ github.event.release.tag_name }}
           NOTARIZED: ${{ steps.signing.outputs.available }}
         run: |
-          gh release upload "$TAG" dist/PDFBuilder.zip --clobber
+          gh release upload "$TAG" dist/PDFBuilder.zip \
+            dist/PDFBuilder.workflow.zip dist/PDFtoJPG.workflow.zip --clobber
 
           notes="$RUNNER_TEMP/notes.md"
           gh release view "$TAG" --json body --jq '.body // ""' > "$notes"

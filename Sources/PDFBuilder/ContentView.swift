@@ -5,6 +5,8 @@ import UniformTypeIdentifiers
 struct ContentView: View {
     @EnvironmentObject private var model: BuilderModel
     @AppStorage("previewWidth") private var previewWidth = Double(PreviewSizing.defaultWidth)
+    @FocusState private var isPageListFocused: Bool
+    private let quickLook = PageQuickLookController.shared
 
     var body: some View {
         VStack(spacing: 0) {
@@ -43,6 +45,14 @@ struct ContentView: View {
                 dismissButton: .default(Text("OK"))
             )
         }
+        .onAppear {
+            quickLook.reportError = { error in
+                model.alert = AppAlert(title: "Could Not Preview Page", message: error.localizedDescription)
+            }
+            quickLook.select(model.selectedPage)
+        }
+        .onChange(of: model.selectedPageID) { _ in quickLook.select(model.selectedPage) }
+        .onDisappear { quickLook.close() }
     }
 
     private var header: some View {
@@ -54,7 +64,7 @@ struct ContentView: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text("Build PDF")
                     .font(.title2.weight(.semibold))
-                Text("Drag pages to reorder, then press Return.")
+                Text("↑ ↓ to select · Space to preview · Return to build")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -62,6 +72,13 @@ struct ContentView: View {
             Spacer()
 
             if !model.pages.isEmpty {
+                Button(action: toggleQuickLook) {
+                    Label("Quick Look", systemImage: "eye")
+                }
+                .keyboardShortcut("y", modifiers: .command)
+                .disabled(model.selectedPage == nil)
+                .help("Preview the selected page (Space)")
+
                 Button {
                     model.chooseFiles(replacing: false)
                 } label: {
@@ -97,25 +114,47 @@ struct ContentView: View {
     }
 
     private var pageList: some View {
-        List {
-            ForEach(Array(model.pages.enumerated()), id: \.element.id) { index, page in
-                PageRow(
-                    index: index,
-                    page: page,
-                    pageFormat: model.pageFormat,
-                    previewWidth: $previewWidth,
-                    canMoveUp: index > 0,
-                    canMoveDown: index < model.pages.count - 1,
-                    moveUp: { model.moveUp(page) },
-                    moveDown: { model.moveDown(page) },
-                    remove: { model.remove(page) }
-                )
-                .padding(.vertical, 4)
+        ScrollViewReader { proxy in
+            List(selection: $model.selectedPageID) {
+                ForEach(Array(model.pages.enumerated()), id: \.element.id) { index, page in
+                    PageRow(
+                        index: index,
+                        page: page,
+                        pageFormat: model.pageFormat,
+                        previewWidth: $previewWidth,
+                        canMoveUp: index > 0,
+                        canMoveDown: index < model.pages.count - 1,
+                        moveUp: { model.moveUp(page) },
+                        moveDown: { model.moveDown(page) },
+                        remove: { model.remove(page) }
+                    )
+                    .padding(.vertical, 4)
+                    .tag(page.id)
+                    .id(page.id)
+                }
+                .onMove(perform: model.movePages)
             }
-            .onMove(perform: model.movePages)
+            .listStyle(.inset)
+            .focused($isPageListFocused)
+            .background {
+                PageListKeyboardBridge(
+                    isFocused: isPageListFocused,
+                    onMove: { model.moveSelection(by: $0) },
+                    onTogglePreview: toggleQuickLook
+                )
+            }
+            .onAppear { isPageListFocused = true }
+            .onChange(of: model.selectedPageID) { id in
+                if let id { proxy.scrollTo(id) }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .listStyle(.inset)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func toggleQuickLook() {
+        isPageListFocused = true
+        quickLook.select(model.selectedPage)
+        quickLook.toggle()
     }
 
     private var controls: some View {
